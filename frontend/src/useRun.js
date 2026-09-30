@@ -7,6 +7,7 @@ const FINISHED = ['done', 'error', 'cancelled']
 
 export const store = reactive({
   meta: null,
+  runSettings: null, // 실행 당시 평가 설정 (재생 시 현재 설정과 다를 수 있음)
   metaError: null,
   recordings: [],
   run: null, // { id, mode, company, replay, recording, speed, status, t, created, cancelRequested }
@@ -121,7 +122,7 @@ function reset() {
   source?.close()
   stopClock()
   Object.assign(store, {
-    run: null, nodes: {}, edges: {}, batch: 0, outputs: {}, logs: [], candidates: [],
+    run: null, runSettings: null, nodes: {}, edges: {}, batch: 0, outputs: {}, logs: [], candidates: [],
     scores: null, scoresCompany: null, report: null, verify: null, result: null, error: null,
     selected: null, follow: true, clock: 0,
   })
@@ -167,6 +168,7 @@ function handle(ev) {
         mode: ev.mode, company: ev.company, created: ev.created, status: 'running',
         replay: !!ev.replay || store.run.replay,
       })
+      store.runSettings = ev.settings ?? null
       if (!store.run.replay) startClock(ev.t)
       log(ev, null, 'info', ev.mode === 'company' ? `기업 지정 평가 시작: ${ev.company}` : '자동 발굴 평가 시작')
       break
@@ -271,7 +273,8 @@ function describeAnalysis(node, u) {
   if (node === 'tech_summary') {
     const t = u.tech_summary ?? {}
     const miss = t.missing_fields?.length ? ` · 빈 항목 ${t.missing_fields.length}개` : ''
-    return `기술 근거 ${t.evidence?.length ?? 0}건${miss}${src}`
+    const ctx = t.industry_context ? ` · 업계 해석 ${t.industry_context.length}건` : ''
+    return `기술 근거 ${t.evidence?.length ?? 0}건${ctx}${miss}${src}`
   }
   if (node === 'market') {
     const m = u.market_analysis ?? {}

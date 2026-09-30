@@ -7,6 +7,14 @@ import ValueView from './ValueView.vue'
 
 const TECH_FIELDS = ['core_chips', 'process', 'development_stage', 'performance_metrics', 'strengths', 'weaknesses', 'public_revenue_contracts']
 const MISMATCH_KIND = { number: '수치', rag_number: '문서 수치', rag_claim: '문서 근거' }
+const TOPIC = { performance: '성능', process: '공정', maturity: '성숙도', tradeoffs: '트레이드오프' }
+const COMPARISON = { context_only: '일반 해석', comparable: '같은 조건 비교', conditions_missing: '비교 조건 부족' }
+const CONTEXT_STATUS = {
+  no_company_facts: '해석할 기업 사실이 없음',
+  retrieval_unavailable: '기술 문서 검색 실패',
+  no_reports: '관련 기술 보고서를 찾지 못함',
+  no_supported_context: '보고서 근거로 뒷받침되는 해석 없음',
+}
 
 const name = computed(() => store.selected)
 const info = computed(() => NODE_INFO[name.value])
@@ -19,6 +27,16 @@ const company = computed(() => {
 })
 const tech = computed(() => u.value?.tech_summary)
 const techFields = computed(() => Object.fromEntries(TECH_FIELDS.map((k) => [k, tech.value?.[k]])))
+const diag = computed(() => {
+  const d = tech.value?.diagnostics
+  if (!d) return null
+  const rag = d.rag ?? {}
+  return [
+    `웹 검색 ${d.retrieved_web ?? 0}건 → 근거 선택 ${d.selected_web ?? 0}건`,
+    `주장 채택 ${d.accepted_claims ?? 0} · 기각 ${Array.isArray(d.rejected_claims) ? d.rejected_claims.length : (d.rejected_claims ?? 0)}`,
+    rag.retrieved_reports != null ? `기술 보고서 ${rag.retrieved_reports}조각 검색 → 해석 ${tech.value.industry_context?.length ?? 0}건 채택` : null,
+  ].filter(Boolean)
+})
 const market = computed(() => u.value?.market_analysis)
 const comp = computed(() => u.value?.competitor_analysis)
 const team = computed(() => u.value?.team_analysis)
@@ -61,7 +79,19 @@ const title = computed(() => {
         <p v-if="tech.missing_fields?.length" class="note">
           빈 항목: {{ tech.missing_fields.map((f) => FIELD_LABELS[f] ?? f).join(', ') }}
         </p>
+        <p v-if="diag" class="diag">{{ diag.join(' · ') }}</p>
         <ValueView :value="techFields" />
+        <div v-if="tech.industry_context_status" class="context">
+          <h3>업계 맥락 <span class="muted">기술 보고서 근거로 해석</span></h3>
+          <ul v-if="tech.industry_context?.length" class="claims">
+            <li v-for="(c, i) in tech.industry_context" :key="i">
+              <span class="badge tiny accent">{{ TOPIC[c.topic] ?? c.topic }}</span>
+              <span class="badge tiny">{{ COMPARISON[c.comparison] ?? c.comparison }}</span> {{ c.text }}
+              <span class="meta">{{ [c.title, c.date, c.page ? `${c.page}쪽` : ''].filter(Boolean).join(' · ') }}</span>
+            </li>
+          </ul>
+          <p v-else class="muted">{{ CONTEXT_STATUS[tech.industry_context_status] ?? tech.industry_context_status }}</p>
+        </div>
         <details v-if="tech.evidence?.length" class="more">
           <summary>주장별 근거 {{ tech.evidence.length }}건</summary>
           <ul class="claims">
@@ -167,6 +197,10 @@ const title = computed(() => {
 .strong { font-weight: 700; }
 .meta { display: block; color: var(--muted); font-size: 12px; font-weight: 400; }
 .tiny { font-size: 11px; padding: 1px 7px; }
+.diag { margin: 0 0 12px; padding: 7px 10px; border-radius: 8px; background: #f8fafc; color: #475569; font-size: 12.5px; }
+.context { margin-top: 14px; }
+.context h3 { margin: 0 0 6px; font-size: 14px; }
+.context h3 .muted { font-size: 12px; font-weight: 500; }
 .more { margin-top: 12px; }
 .more summary { cursor: pointer; font-weight: 700; color: #334155; }
 .claims { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; font-size: 13.5px; }

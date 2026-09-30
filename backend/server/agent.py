@@ -26,6 +26,7 @@ load_dotenv(AGENT_DIR / ".env")
 sys.path.insert(0, str(AGENT_DIR))
 os.chdir(AGENT_DIR)
 
+import config as agent_config  # noqa: E402
 from agents.judge import ITEM_LABELS  # noqa: E402
 from agents.reporter import export_report_pdf  # noqa: E402
 from config import CORE_ITEMS, CORE_MIN_SCORE, INVEST_THRESHOLD, MAX_CANDIDATES, WEIGHTS  # noqa: E402
@@ -70,5 +71,6 @@ def settings() -> dict:
         "threshold": INVEST_THRESHOLD,
         "core_items": list(CORE_ITEMS),
         "core_min_score": CORE_MIN_SCORE,
+        "core_caution_score": getattr(agent_config, "CORE_CAUTION_SCORE", None),
         "max_candidates": MAX_CANDIDATES,
     }

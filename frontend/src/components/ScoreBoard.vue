@@ -3,7 +3,8 @@ import { computed, ref } from 'vue'
 import { store } from '../useRun'
 
 const s = computed(() => store.scores)
-const cfg = computed(() => store.meta?.settings)
+// 재생할 때는 실행 당시 비중·기준을 쓴다 (예전 기록에는 없어서 현재 설정으로 대신함)
+const cfg = computed(() => store.runSettings ?? store.meta?.settings)
 const open = ref(null)
 
 const rows = computed(() => {
@@ -14,6 +15,8 @@ const rows = computed(() => {
       key, weight, label: cfg.value.item_labels[key] ?? key, score: item.score ?? 0,
       contrib: ((item.score ?? 0) / 5) * weight, evidence: item.evidence, insufficient: item.insufficient,
       core: cfg.value.core_items.includes(key),
+      caution: cfg.value.core_items.includes(key) && cfg.value.core_caution_score != null
+        && (item.score ?? 0) <= cfg.value.core_caution_score,
     }
   })
 })
@@ -44,6 +47,10 @@ const invest = computed(() => s.value?.decision === '투자')
         <li v-for="r in s.hold_reasons" :key="r">{{ r }}</li>
       </ul>
 
+      <ul v-if="s.cautions?.length" class="cautions">
+        <li v-for="c in s.cautions" :key="c.item">⚠ {{ c.comment }}</li>
+      </ul>
+
       <table class="items">
         <thead>
           <tr><th>평가 항목</th><th class="w">비중</th><th>점수</th><th class="w">환산</th></tr>
@@ -59,7 +66,7 @@ const invest = computed(() => s.value?.decision === '투자')
               <td class="w mono">{{ r.weight }}%</td>
               <td>
                 <span class="dots" :aria-label="`${r.score}점 / 5점`">
-                  <i v-for="k in 5" :key="k" :class="{ on: k <= r.score, low: r.core && r.score < cfg.core_min_score }" />
+                  <i v-for="k in 5" :key="k" :class="{ on: k <= r.score, low: r.core && r.score < cfg.core_min_score, caution: r.caution }" />
                 </span>
                 <span class="mono score">{{ r.score }}/5</span>
               </td>
@@ -102,6 +109,7 @@ const invest = computed(() => s.value?.decision === '투자')
   position: absolute; top: 22px; left: 0; transform: translateX(-50%); font-size: 12px; font-weight: 700; white-space: nowrap;
 }
 .reasons { margin: 0 0 12px; padding: 10px 12px 10px 28px; border-radius: 10px; background: var(--warn-soft); color: var(--warn); font-size: 14px; font-weight: 600; }
+.cautions { list-style: none; margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; border: 1px solid #fcd34d; background: #fffbeb; color: #92400e; font-size: 13.5px; display: grid; gap: 4px; }
 .items { width: 100%; border-collapse: collapse; font-size: 14px; }
 .items th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 600; padding: 0 6px 6px; border-bottom: 1px solid var(--line); }
 .items td { padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: middle; }
@@ -113,6 +121,7 @@ const invest = computed(() => s.value?.decision === '투자')
 .dots { display: inline-flex; gap: 4px; vertical-align: middle; margin-right: 8px; }
 .dots i { width: 11px; height: 11px; border-radius: 50%; background: #e2e8f0; }
 .dots i.on { background: var(--accent); }
+.dots i.on.caution { background: #f59e0b; }
 .dots i.on.low { background: var(--bad); }
 .score { color: var(--muted); font-size: 13px; }
 .evidence-row td { background: #f8fafc; color: #334155; font-size: 13.5px; padding: 4px 10px 12px; }

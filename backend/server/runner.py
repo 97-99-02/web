@@ -11,7 +11,7 @@ import time
 import uuid
 from datetime import datetime
 
-from .agent import RECORDINGS_DIR, build_graph, export_report_pdf
+from .agent import RECORDINGS_DIR, build_graph, export_report_pdf, settings
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +114,8 @@ def _execute(run: Run):
     inputs = {"current_index": 0, "retry_count": 0}
     if run.mode == "company":
         inputs["candidates"] = [run.company]   # 탐색 노드는 candidates가 있으면 발굴을 건너뛴다
-    run.emit("run", mode=run.mode, company=run.company, created=run.created, replay=False)
+    # 평가 비중·기준은 에이전트 저장소 버전에 따라 바뀌므로 실행 당시 값을 기록에 함께 남긴다
+    run.emit("run", mode=run.mode, company=run.company, created=run.created, replay=False, settings=settings())
     final: dict = {}
     stream = None
     try:

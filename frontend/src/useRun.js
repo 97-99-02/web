@@ -14,7 +14,7 @@ export const store = reactive({
   nodes: {}, // 노드 이름 → { status, count, startT, duration, context }
   edges: {}, // 'a->b' → { count, batch }
   batch: 0, // 가장 최근에 지나간 연결선 묶음 번호 (강조 표시용)
-  design: { edges: {}, reached: {}, batch: 0 }, // 설계 그래프(README) 기준 진행 상태
+  design: { edges: {}, reached: {}, failed: {}, batch: 0 }, // 설계 그래프(README) 기준 진행 상태
   outputs: {}, // 노드 이름 → 마지막 출력
   logs: [],
   candidates: [], // { name, status, reason, total, segment }
@@ -126,7 +126,7 @@ function reset() {
   source?.close()
   stopClock()
   Object.assign(store, {
-    run: null, runSettings: null, nodes: {}, edges: {}, batch: 0, design: { edges: {}, reached: {}, batch: 0 }, outputs: {}, logs: [], candidates: [],
+    run: null, runSettings: null, nodes: {}, edges: {}, batch: 0, design: { edges: {}, reached: {}, failed: {}, batch: 0 }, outputs: {}, logs: [], candidates: [],
     scores: null, scoresCompany: null, consistency: null, report: null, verify: null, result: null, error: null,
     selected: null, follow: true, clock: 0,
   })
@@ -304,7 +304,7 @@ function endJudge(_, u) {
     c.total = s.total
     c.reason = s.hold_reasons?.join('; ')
   }
-  const re = u.consistency?.rescored ? ' · 재채점' : ''
+  const re = u.consistency?.rescored ? ' · 재채점' : u.consistency?.rescore_error ? ' · 재채점 실패(첫 채점 사용)' : ''
   return `${s.total}점 → ${s.decision}${re}${s.decision === '보류' ? ` (${s.hold_reasons.join('; ')})` : ''}`
 }
 
@@ -316,7 +316,8 @@ function endReporter(_, u) {
 function endVerifier(_, u) {
   const v = u.verify_result ?? {}
   store.verify = v
-  return v.passed ? `검증 통과 (수치 ${v.checked ?? 0}개 대조)` : `불일치 ${v.mismatches?.length ?? 0}건`
+  const errs = Object.keys(v.errors ?? {}).length ? ` · 일부 단계 오류로 건너뜀(${Object.keys(v.errors).join(', ')})` : ''
+  return (v.passed ? `검증 통과 (수치 ${v.checked ?? 0}개 대조)` : `불일치 ${v.mismatches?.length ?? 0}건`) + errs
 }
 
 export function select(node) {
@@ -360,9 +361,10 @@ function designEvent(ev) {
       const c = u.consistency
       if (c) {
         go('score', 'diff')
-        if (c.rescored) {
+        if (c.rescored || c.rescore_error) {
           go('diff', 'rescore')
           go('rescore', 'dec')
+          if (c.rescore_error) D.failed.rescore = true // 재채점 실패 → 첫 채점 결과로 진행
         } else go('diff', 'dec')
       } else D.reached.dec = D.batch // 재채점 기능 이전 기록: 일관성 검사 단계 없이 결정
       if (u.scores?.decision === '투자') designRoute = 'invest'

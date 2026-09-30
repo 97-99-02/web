@@ -29,6 +29,7 @@ const consistency = computed(() => {
   if (!c) return null
   if (!c.history) return { rescored: false, text: '같은 평가 버전의 과거 기록 없음 → 1회 채점' }
   const past = `과거 ${c.history}건(중앙값 ${c.past_median_total}점)`
+  if (c.rescore_error) return { rescored: false, text: `${past}과 달라 재채점을 시도했으나 실패해 첫 채점 결과로 진행 (${c.rescore_error})` }
   if (!c.rescored) return { rescored: false, text: `${past}과 비교 → 결정·점수 차이가 작아 1회 채점 유지` }
   const samples = (c.sample_totals ?? []).join(' · ')
   const still = c.still_inconsistent ? ' — 재채점 후에도 차이가 남아 분석 입력이 바뀐 경우로 기록' : ''

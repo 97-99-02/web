@@ -7,6 +7,7 @@ import ValueView from './ValueView.vue'
 
 const TECH_FIELDS = ['core_chips', 'process', 'development_stage', 'performance_metrics', 'strengths', 'weaknesses', 'public_revenue_contracts']
 const MISMATCH_KIND = { number: '수치', rag_number: '문서 수치', rag_claim: '문서 근거' }
+const VERIFY_STAGE = { rag: '문서 원문 대조', judge: 'LLM 검수' }
 const TOPIC = { performance: '성능', process: '공정', maturity: '성숙도', tradeoffs: '트레이드오프' }
 const COMPARISON = { context_only: '일반 해석', comparable: '같은 조건 비교', conditions_missing: '비교 조건 부족' }
 const CONTEXT_STATUS = {
@@ -166,6 +167,9 @@ const title = computed(() => {
           보고서 수치 {{ verify.checked ?? 0 }}개 대조
           <template v-if="verify.rag"> · 문서 근거 확인 {{ verify.rag.grounded ?? 0 }}/{{ verify.rag.checked ?? 0 }}</template>
         </div>
+        <p v-for="(msg, stage) in verify.errors ?? {}" :key="stage" class="note">
+          {{ VERIFY_STAGE[stage] ?? stage }} 단계 오류로 건너뜀: {{ msg }}
+        </p>
         <ul v-if="verify.mismatches?.length" class="claims">
           <li v-for="(m, i) in verify.mismatches" :key="i">
             <span class="badge warn tiny">{{ MISMATCH_KIND[m.kind] ?? m.kind }}</span> <strong>{{ m.value }}</strong>

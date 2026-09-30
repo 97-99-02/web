@@ -26,6 +26,7 @@ const nodes = computed(() =>
     const reached = D.value.reached[id]
     let status = run?.status ?? (reached != null ? 'done' : 'idle')
     if (!run && reached != null && reached === D.value.batch && isLive.value) status = 'active'
+    if (D.value.failed?.[id]) status = 'error'
     if (id === 'start' && store.run && store.run.status !== 'connecting') status = 'done'
     return {
       id, ...n, h: n.h ?? NODE_H, label: n.label ?? info.label, sub: n.sub ?? info.sub, run, status,
@@ -57,7 +58,7 @@ function diamond(n) {
 
 function statusText(n) {
   const run = n.run
-  if (!run) return n.id === 'rescore' && n.status !== 'idle' ? '✓ 재채점함' : ''
+  if (!run) return n.id !== 'rescore' || n.status === 'idle' ? '' : n.status === 'error' ? '실패 → 첫 채점 사용' : '✓ 재채점함'
   const times = run.count > 1 ? `${run.count}회 · ` : ''
   if (run.status === 'running') return `${times}진행 중…`
   if (run.status === 'error') return '오류'

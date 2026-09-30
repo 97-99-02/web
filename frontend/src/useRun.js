@@ -19,6 +19,7 @@ export const store = reactive({
   candidates: [], // { name, status, reason, total, segment }
   scores: null,
   scoresCompany: null,
+  consistency: null, // 투자 판단의 일관성 검사(재채점) 결과
   report: null,
   verify: null,
   result: null,
@@ -123,7 +124,7 @@ function reset() {
   stopClock()
   Object.assign(store, {
     run: null, runSettings: null, nodes: {}, edges: {}, batch: 0, outputs: {}, logs: [], candidates: [],
-    scores: null, scoresCompany: null, report: null, verify: null, result: null, error: null,
+    scores: null, scoresCompany: null, consistency: null, report: null, verify: null, result: null, error: null,
     selected: null, follow: true, clock: 0,
   })
   frontier = ['__start__']
@@ -289,6 +290,7 @@ function endJudge(_, u) {
   const s = u.scores
   if (!s) return '채점 결과 없음'
   store.scores = s
+  store.consistency = u.consistency ?? null
   const c = store.candidates.find((x) => x.status === 'analyzing')
   store.scoresCompany = c?.name ?? store.outputs.explorer?.company?.name
   if (c) {
@@ -296,7 +298,8 @@ function endJudge(_, u) {
     c.total = s.total
     c.reason = s.hold_reasons?.join('; ')
   }
-  return `${s.total}점 → ${s.decision}${s.decision === '보류' ? ` (${s.hold_reasons.join('; ')})` : ''}`
+  const re = u.consistency?.rescored ? ' · 재채점' : ''
+  return `${s.total}점 → ${s.decision}${re}${s.decision === '보류' ? ` (${s.hold_reasons.join('; ')})` : ''}`
 }
 
 function endReporter(_, u) {

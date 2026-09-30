@@ -27,13 +27,17 @@ sys.path.insert(0, str(AGENT_DIR))
 os.chdir(AGENT_DIR)
 
 import config as agent_config  # noqa: E402
+from agents import judge as agent_judge  # noqa: E402
 from agents.judge import ITEM_LABELS  # noqa: E402
 from agents.reporter import export_report_pdf  # noqa: E402
 from config import CORE_ITEMS, CORE_MIN_SCORE, INVEST_THRESHOLD, MAX_CANDIDATES, WEIGHTS  # noqa: E402
 from graph import build_graph  # noqa: E402
 from rag.retriever import get_vectorstore  # noqa: E402
 
-__all__ = ["BACKEND_DIR", "RECORDINGS_DIR", "build_graph", "export_report_pdf",
+# 투자 판단의 재채점 여부는 state에 없고 채점 로그에만 남는다 (작업 폴더가 에이전트 저장소라 상대 경로)
+JUDGE_LOG_PATH = Path(getattr(agent_judge, "JUDGE_LOG_PATH", "outputs/judge_log.jsonl"))
+
+__all__ = ["BACKEND_DIR", "RECORDINGS_DIR", "JUDGE_LOG_PATH", "build_graph", "export_report_pdf",
            "graph_structure", "settings", "warm_up", "warm_status"]
 
 _warm = {"ready": False, "error": None}

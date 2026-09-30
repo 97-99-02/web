@@ -11,7 +11,7 @@ import time
 import uuid
 from datetime import datetime
 
-from .agent import RECORDINGS_DIR, build_graph, export_report_pdf, settings
+from .agent import JUDGE_LOG_PATH, RECORDINGS_DIR, build_graph, export_report_pdf, settings
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +101,24 @@ def _clean_update(result) -> dict:
     return update
 
 
+def _judge_consistency(company: str | None, since: str) -> dict | None:
+    """채점 로그에서 이 실행 이후 같은 기업의 마지막 기록을 찾아 일관성 검사(재채점) 결과를 돌려준다."""
+    if not company:
+        return None
+    try:
+        lines = JUDGE_LOG_PATH.read_text(encoding="utf-8").splitlines()[-20:]
+    except OSError:
+        return None
+    for line in reversed(lines):
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if record.get("company") == company and record.get("time", "") >= since:
+            return record.get("consistency")
+    return None
+
+
 def _final_result(state: dict) -> dict:
     keys = ("candidates", "company", "rejected", "scores", "verify_result", "report", "retry_count")
     result = {k: state.get(k) for k in keys}
@@ -133,8 +151,10 @@ def _execute(run: Run):
             elif chunk.get("error"):
                 run.emit("node_error", node=chunk["name"], task=chunk["id"], message=str(chunk["error"]))
             else:
-                run.emit("node_end", node=chunk["name"], task=chunk["id"],
-                         update=_jsonable(_clean_update(chunk["result"])))
+                update = _clean_update(chunk["result"])
+                if chunk["name"] == "judge":
+                    update["consistency"] = _judge_consistency((final.get("company") or {}).get("name"), run.created)
+                run.emit("node_end", node=chunk["name"], task=chunk["id"], update=_jsonable(update))
         result = _jsonable(_final_result(final))
         result["pdf"] = _export_pdf(run, final)
         run.emit("done", result=result)

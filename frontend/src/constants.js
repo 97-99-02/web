@@ -1,13 +1,13 @@
 // 노드 이름은 에이전트 저장소 graph.py 의 add_node 이름과 같다.
 export const NODE_INFO = {
-  explorer: { label: '스타트업 탐색', sub: '웹 검색 · 조건 확인' },
-  tech_summary: { label: '기술 요약', sub: 'RAG 기술 문서 + 웹' },
-  market: { label: '시장성 평가', sub: 'RAG 시장 보고서' },
-  competitor: { label: '경쟁사 비교', sub: '웹 검색' },
+  explorer: { label: '스타트업 탐색', sub: '후보 발굴 · 조건 확인' },
+  tech_summary: { label: '기술 요약', sub: '웹 사실 + RAG 업계 해석' },
+  market: { label: '시장성 평가', sub: 'RAG 시장(+기술) 문서' },
+  competitor: { label: '경쟁사 비교', sub: '웹 검색 · 상장 여부 판정' },
   team: { label: '팀 분석', sub: '웹 검색' },
-  judge: { label: '투자 판단', sub: '평가표 채점 · 규칙 결정' },
+  judge: { label: '투자 판단', sub: '채점 · 규칙 · 재채점' },
   reporter: { label: '보고서 생성', sub: '출처 포함 작성' },
-  verifier: { label: '사실 검증', sub: '수치·출처 대조' },
+  verifier: { label: '사실 검증', sub: '수치·원문·LLM 검수' },
 }
 
 export const nodeLabel = (name) => NODE_INFO[name]?.label ?? name
@@ -37,7 +37,7 @@ export const EDGE_LABELS = {
   'judge->explorer': { lines: ['보류 → 다음 후보'], x: 395, y: 502 },
   'judge->reporter': { lines: ['투자', '후보 소진'], x: 722, y: 196 },
   'verifier->reporter': { lines: ['불일치 → 1회 재작성'], x: 918, y: 156 },
-  'verifier->__end__': { lines: ['완료'], x: 1092, y: 250 },
+  'verifier->__end__': { lines: ['통과 또는', '확인 필요 표시'], x: 1098, y: 200 },
 }
 
 // 특수한 모양의 연결선 (되돌아가는 선, 자기 자신으로 가는 선)

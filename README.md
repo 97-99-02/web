@@ -54,7 +54,7 @@ ai-startup-investment-web/
 git clone --recurse-submodules <이 저장소 URL>
 cd ai-startup-investment-web
 
-# 에이전트 준비: agent/.env 작성(OPENAI_API_KEY, TAVILY_API_KEY 등) 후
+# 에이전트 준비: agent/.env 에 OPENAI_API_KEY, TAVILY_API_KEY, HF_TOKEN 작성 후 (에이전트 README '환경 변수' 참고)
 cd agent && uv sync && uv run python -m rag.ingest && cd ..
 
 cd frontend && npm install && cd ..

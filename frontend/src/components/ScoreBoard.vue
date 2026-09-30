@@ -22,6 +22,18 @@ const rows = computed(() => {
 })
 
 const invest = computed(() => s.value?.decision === '투자')
+
+// 같은 기업·같은 평가 버전의 과거 기록과 비교해 크게 다르면 seed를 바꿔 재채점한다 (agents/judge.py)
+const consistency = computed(() => {
+  const c = store.consistency
+  if (!c) return null
+  if (!c.history) return { rescored: false, text: '같은 평가 버전의 과거 기록 없음 → 1회 채점' }
+  const past = `과거 ${c.history}건(중앙값 ${c.past_median_total}점)`
+  if (!c.rescored) return { rescored: false, text: `${past}과 비교 → 결정·점수 차이가 작아 1회 채점 유지` }
+  const samples = (c.sample_totals ?? []).join(' · ')
+  const still = c.still_inconsistent ? ' — 재채점 후에도 차이가 남아 분석 입력이 바뀐 경우로 기록' : ''
+  return { rescored: true, text: `${past}과 달라 재채점: 첫 채점 ${c.first_total}점, seed를 바꾼 채점 포함 ${samples}점 → 항목별 중앙값으로 ${s.value.total}점${still}` }
+})
 </script>
 
 <template>
@@ -42,6 +54,10 @@ const invest = computed(() => s.value?.decision === '투자')
           <div class="threshold" :style="{ left: `${cfg.threshold}%` }"><span>투자 기준 {{ cfg.threshold }}점</span></div>
         </div>
       </div>
+
+      <p v-if="consistency" class="consistency" :class="{ re: consistency.rescored }">
+        <strong>일관성 검사</strong> {{ consistency.text }}
+      </p>
 
       <ul v-if="s.hold_reasons?.length" class="reasons">
         <li v-for="r in s.hold_reasons" :key="r">{{ r }}</li>
@@ -108,6 +124,9 @@ const invest = computed(() => s.value?.decision === '투자')
 .threshold span {
   position: absolute; top: 22px; left: 0; transform: translateX(-50%); font-size: 12px; font-weight: 700; white-space: nowrap;
 }
+.consistency { margin: 0 0 12px; padding: 8px 12px; border-radius: 10px; background: #f8fafc; color: #475569; font-size: 13px; }
+.consistency strong { margin-right: 6px; color: var(--text); }
+.consistency.re { background: var(--accent-soft); color: #3730a3; }
 .reasons { margin: 0 0 12px; padding: 10px 12px 10px 28px; border-radius: 10px; background: var(--warn-soft); color: var(--warn); font-size: 14px; font-weight: 600; }
 .cautions { list-style: none; margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; border: 1px solid #fcd34d; background: #fffbeb; color: #92400e; font-size: 13.5px; display: grid; gap: 4px; }
 .items { width: 100%; border-collapse: collapse; font-size: 14px; }

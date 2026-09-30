@@ -4,13 +4,17 @@ import { cancelRun, replay, startRun, stopReplay, store } from '../useRun'
 
 const mode = ref('company')
 const company = ref('')
-const recId = ref('')
+const recId = ref(new URLSearchParams(location.search).get('replay') ?? '')
 const speed = ref(4)
 
 const warm = computed(() => store.meta?.warm)
+// 키가 없으면 실시간 평가는 막고 저장된 실행 재생만 쓰게 한다 (서버는 키 값이 아니라 유무만 알려준다)
+const missingKeys = computed(() =>
+  Object.entries(store.meta?.keys ?? {}).filter(([, ok]) => !ok).map(([k]) => ({ openai: 'OPENAI_API_KEY', tavily: 'TAVILY_API_KEY' })[k]),
+)
 const running = computed(() => store.run && ['connecting', 'running'].includes(store.run.status))
 const canStart = computed(
-  () => warm.value?.ready && !running.value && (mode.value === 'discover' || company.value.trim()),
+  () => warm.value?.ready && !missingKeys.value.length && !running.value && (mode.value === 'discover' || company.value.trim()),
 )
 
 watch(
@@ -80,6 +84,9 @@ function recLabel(r) {
       <button v-else class="btn" type="button" :disabled="running || !recId" @click="replay(recId, speed)">재생</button>
     </div>
 
+    <p v-if="missingKeys.length" class="keys">
+      실시간 평가에는 <code>agent/.env</code> 의 {{ missingKeys.join(', ') }} 가 필요합니다. 지금은 <b>저장된 실행 → 재생</b>으로 볼 수 있습니다.
+    </p>
     <p v-if="warm && !warm.ready" class="warm" :class="{ bad: warm.error }">
       {{ warm.error ? `임베딩·벡터DB 로딩 실패: ${warm.error}` : '임베딩 모델(KURE-v1)과 벡터DB를 불러오는 중…' }}
     </p>
@@ -109,6 +116,8 @@ function recLabel(r) {
 .speed { width: 92px; }
 .discover-note { margin: 0; flex: 1 1 200px; color: var(--muted); font-size: 14px; }
 .replay-label { font-size: 13px; font-weight: 700; color: var(--muted); }
+.keys { flex-basis: 100%; margin: 0; font-size: 13px; color: #9a3412; }
+.keys code { font-family: var(--mono); background: #fff7ed; padding: 1px 5px; border-radius: 5px; }
 .warm { flex-basis: 100%; margin: 0; font-size: 13px; color: var(--accent); animation: pulse 1.6s infinite; }
 .warm.bad { color: var(--bad); animation: none; }
 @media (max-width: 900px) {

@@ -37,8 +37,16 @@ from rag.retriever import get_vectorstore  # noqa: E402
 # 투자 판단의 재채점 여부는 state에 없고 채점 로그에만 남는다 (작업 폴더가 에이전트 저장소라 상대 경로)
 JUDGE_LOG_PATH = Path(getattr(agent_judge, "JUDGE_LOG_PATH", "outputs/judge_log.jsonl"))
 
-__all__ = ["BACKEND_DIR", "RECORDINGS_DIR", "JUDGE_LOG_PATH", "build_graph", "export_report_pdf",
+__all__ = ["BACKEND_DIR", "RECORDINGS_DIR", "JUDGE_LOG_PATH", "api_keys", "build_graph", "export_report_pdf",
            "graph_structure", "settings", "warm_up", "warm_status"]
+
+# 실시간 평가에 꼭 필요한 키. 없으면 저장된 실행 재생만 할 수 있다
+REQUIRED_KEYS = {"openai": "OPENAI_API_KEY", "tavily": "TAVILY_API_KEY"}
+
+
+def api_keys() -> dict:
+    """키가 들어 있는지만 알려준다 (값은 절대 내보내지 않는다)."""
+    return {name: bool(os.environ.get(var, "").strip()) for name, var in REQUIRED_KEYS.items()}
 
 _warm = {"ready": False, "error": None}
 

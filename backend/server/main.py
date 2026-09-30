@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import runner
-from .agent import BACKEND_DIR, graph_structure, settings, warm_status, warm_up
+from .agent import BACKEND_DIR, REQUIRED_KEYS, api_keys, graph_structure, settings, warm_status, warm_up
 
 DIST_DIR = BACKEND_DIR.parent / "frontend" / "dist"
 KEEPALIVE_SEC = 15
@@ -51,12 +51,15 @@ def _resume_from(request: Request) -> int:
 
 @app.get("/api/meta")
 def meta():
-    return {"graph": graph_structure(), "settings": settings(),
+    return {"graph": graph_structure(), "settings": settings(), "keys": api_keys(),
             "warm": warm_status(), "current": runner.current_run_id()}
 
 
 @app.post("/api/runs", status_code=201)
 def create_run(req: RunRequest):
+    missing = [REQUIRED_KEYS[k] for k, ok in api_keys().items() if not ok]
+    if missing:
+        raise HTTPException(422, f"실시간 평가에 필요한 키가 없습니다: {', '.join(missing)} (agent/.env)")
     company = (req.company or "").strip()
     if req.mode == "company" and not company:
         raise HTTPException(422, "기업명을 입력하세요.")

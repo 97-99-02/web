@@ -8,14 +8,18 @@ import NodeDetail from './components/NodeDetail.vue'
 import PipelineGraph from './components/PipelineGraph.vue'
 import ReportView from './components/ReportView.vue'
 import ScoreBoard from './components/ScoreBoard.vue'
-import { loadMeta, loadRecordings, store } from './useRun'
+import { loadMeta, loadRecordings, replay, store } from './useRun'
 
 // 설계 그래프: 팀 README 그림(노드 안 흐름 포함) / 코드 그래프: graph.py build_graph() 실제 노드·연결선
 const view = ref('design')
 
-onMounted(() => {
+onMounted(async () => {
   loadMeta()
-  loadRecordings()
+  await loadRecordings()
+  // ?replay=<기록 id>&speed=4 로 열면 그 기록을 바로 재생한다 (데모 링크 공유용)
+  const q = new URLSearchParams(location.search)
+  const id = q.get('replay')
+  if (id && store.recordings.some((r) => r.id === id)) replay(id, Number(q.get('speed')) || 4)
 })
 
 const STATUS = {

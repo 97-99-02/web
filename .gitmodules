@@ -1,0 +1,3 @@
+[submodule "agent"]
+	path = agent
+	url = https://github.com/97-99-02/ai-startup-investment-agent.git

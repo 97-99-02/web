@@ -1,0 +1,14 @@
+# 비밀값 (키는 에이전트 저장소 .env 에만 둔다)
+backend/.env
+
+# 의존성·빌드 산출물
+frontend/node_modules/
+frontend/dist/
+__pycache__/
+*.pyc
+
+# 실행 기록 (재생용). 발표에 쓸 기록만 git add -f 로 올린다
+backend/recordings/*
+!backend/recordings/.gitkeep
+
+.DS_Store

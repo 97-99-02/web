@@ -1,7 +1,7 @@
 // 실행 상태 저장소. 서버가 SSE로 보내는 이벤트(run / node_start / node_end / done ...)를 받아 화면 상태로 바꾼다.
 // 실시간 실행과 저장된 실행 재생이 같은 이벤트 형식을 쓰므로 처리 코드도 하나다.
 import { reactive } from 'vue'
-import { nodeLabel } from './constants'
+import { ANALYSIS_NODES, nodeLabel } from './constants'
 
 const FINISHED = ['done', 'error', 'cancelled']
 
@@ -14,6 +14,7 @@ export const store = reactive({
   nodes: {}, // 노드 이름 → { status, count, startT, duration, context }
   edges: {}, // 'a->b' → { count, batch }
   batch: 0, // 가장 최근에 지나간 연결선 묶음 번호 (강조 표시용)
+  design: { edges: {}, reached: {}, batch: 0 }, // 설계 그래프(README) 기준 진행 상태
   outputs: {}, // 노드 이름 → 마지막 출력
   logs: [],
   candidates: [], // { name, status, reason, total, segment }
@@ -33,6 +34,8 @@ let source = null
 let frontier = ['__start__']
 let endedSinceStart = []
 let lastWasStart = false
+let designRoute = null // 직전 분기 결과: 'next'(남은 후보 확인) | 'invest' | 'verify_ok' | 'verify_fail'
+let designPrev = null
 let clockTimer = null
 let clockBase = 0
 
@@ -123,13 +126,15 @@ function reset() {
   source?.close()
   stopClock()
   Object.assign(store, {
-    run: null, runSettings: null, nodes: {}, edges: {}, batch: 0, outputs: {}, logs: [], candidates: [],
+    run: null, runSettings: null, nodes: {}, edges: {}, batch: 0, design: { edges: {}, reached: {}, batch: 0 }, outputs: {}, logs: [], candidates: [],
     scores: null, scoresCompany: null, consistency: null, report: null, verify: null, result: null, error: null,
     selected: null, follow: true, clock: 0,
   })
   frontier = ['__start__']
   endedSinceStart = []
   lastWasStart = false
+  designRoute = null
+  designPrev = null
 }
 
 function startClock(t) {
@@ -203,6 +208,7 @@ function handle(ev) {
       log(ev, null, 'info', '사용자가 중단함')
       break
   }
+  designEvent(ev)
 }
 
 function finish(status) {
@@ -322,4 +328,52 @@ export function followLive() {
   store.follow = true
   const last = [...store.logs].reverse().find((l) => l.kind === 'end')
   if (last) store.selected = last.node
+}
+
+// ---------- 설계 그래프 경로 추론 ----------
+// 서버 이벤트는 실제 노드(explorer, judge …) 단위라, README 설계 그래프의 분기(남은 후보? / 과거 평가와 다름? / 투자·보류 /
+// 두 종료)는 노드 결과로 판단한다. 재채점 여부는 judge 종료 이벤트의 consistency(채점 로그)에서 온다.
+function designEvent(ev) {
+  const D = store.design
+  const go = (a, b) => {
+    const key = `${a}->${b}`
+    D.edges[key] = { count: (D.edges[key]?.count ?? 0) + 1, batch: D.batch }
+    D.reached[a] ??= D.batch
+    D.reached[b] = D.batch
+  }
+  if (ev.type === 'node_start') {
+    if (designPrev !== 'node_start') D.batch += 1 // 병렬 시작 4개는 한 묶음으로 강조
+    const n = ev.node
+    if (n === 'explorer') go(designRoute === 'next' ? 'next' : 'start', 'explorer')
+    else if (ANALYSIS_NODES.includes(n)) go('explorer', n)
+    else if (n === 'judge') ANALYSIS_NODES.filter((a) => store.nodes[a]?.status === 'done').forEach((a) => go(a, 'score'))
+    else if (n === 'reporter') go({ verify_fail: 'verifier', invest: 'dec' }[designRoute] ?? 'next', 'reporter')
+    else if (n === 'verifier') go('reporter', 'verifier')
+  } else if (ev.type === 'node_end') {
+    const u = ev.update ?? {}
+    if (ev.node === 'explorer' && !u.is_eligible) {
+      D.batch += 1
+      go('explorer', 'next')
+      designRoute = 'next'
+    } else if (ev.node === 'judge') {
+      D.batch += 1
+      const c = u.consistency
+      if (c) {
+        go('score', 'diff')
+        if (c.rescored) {
+          go('diff', 'rescore')
+          go('rescore', 'dec')
+        } else go('diff', 'dec')
+      } else D.reached.dec = D.batch // 재채점 기능 이전 기록: 일관성 검사 단계 없이 결정
+      if (u.scores?.decision === '투자') designRoute = 'invest'
+      else {
+        go('dec', 'next')
+        designRoute = 'next'
+      }
+    } else if (ev.node === 'verifier') designRoute = u.verify_result?.passed ? 'verify_ok' : 'verify_fail'
+  } else if (ev.type === 'done') {
+    D.batch += 1
+    go('verifier', designRoute === 'verify_fail' ? 'end2' : 'end') // 재작성 1회 후에도 불일치면 '확인 필요' 종료
+  }
+  designPrev = ev.type
 }

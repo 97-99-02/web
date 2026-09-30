@@ -1,13 +1,17 @@
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import ActivityLog from './components/ActivityLog.vue'
 import CandidateTrack from './components/CandidateTrack.vue'
 import ControlBar from './components/ControlBar.vue'
+import DesignGraph from './components/DesignGraph.vue'
 import NodeDetail from './components/NodeDetail.vue'
 import PipelineGraph from './components/PipelineGraph.vue'
 import ReportView from './components/ReportView.vue'
 import ScoreBoard from './components/ScoreBoard.vue'
 import { loadMeta, loadRecordings, store } from './useRun'
+
+// 설계 그래프: 팀 README 그림(노드 안 흐름 포함) / 코드 그래프: graph.py build_graph() 실제 노드·연결선
+const view = ref('design')
 
 onMounted(() => {
   loadMeta()
@@ -77,9 +81,17 @@ const replayInfo = computed(() => {
     <section class="card">
       <h2 class="card-title">
         에이전트 흐름
-        <span class="hint">에이전트 저장소 graph.py 의 build_graph() 구조를 그대로 그림</span>
+        <span class="hint">{{ view === 'design'
+          ? 'README 설계 그래프 · 분기와 투자 판단 안 흐름은 실행 결과로 추론해 표시'
+          : 'graph.py build_graph() 의 실제 노드·연결선' }}</span>
+        <span class="spacer" />
+        <span class="seg" role="radiogroup" aria-label="그래프 보기">
+          <button type="button" :class="{ on: view === 'design' }" @click="view = 'design'">설계 그래프</button>
+          <button type="button" :class="{ on: view === 'code' }" @click="view = 'code'">코드 그래프</button>
+        </span>
       </h2>
-      <PipelineGraph />
+      <DesignGraph v-if="view === 'design'" />
+      <PipelineGraph v-else />
       <ul class="legend">
         <li><i class="l-cond" />조건 분기</li>
         <li><i class="l-active" />방금 지난 경로</li>
@@ -121,6 +133,9 @@ h1 { margin: 0; font-size: 26px; letter-spacing: -0.03em; }
 .banner.bad { background: var(--bad-soft); color: var(--bad); }
 .banner.replay { background: #fff7ed; color: #9a3412; border-color: #fdba74; }
 
+.seg { display: inline-flex; padding: 3px; background: #f1f5f9; border-radius: 10px; }
+.seg button { height: 28px; padding: 0 12px; border: 0; border-radius: 7px; background: transparent; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; }
+.seg button.on { background: var(--card); color: var(--text); box-shadow: 0 1px 3px rgb(15 23 42 / 0.12); }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; list-style: none; margin: 8px 0 0; padding: 0; font-size: 12.5px; color: var(--muted); }
 .legend li { display: flex; align-items: center; gap: 6px; }
 .legend i { display: inline-block; width: 22px; height: 0; border-top: 2px solid; }
